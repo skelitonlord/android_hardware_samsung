@@ -17,11 +17,9 @@ LOCAL_SHARED_LIBRARIES := \
     libhardware_legacy \
     librilutils
 
-LOCAL_CFLAGS :=
+LOCAL_CFLAGS += -DHAVE_PTHREADS
 
 LOCAL_MODULE:= libril
-
-LOCAL_LDLIBS += -lpthread
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -39,11 +37,9 @@ LOCAL_STATIC_LIBRARIES := \
     libcutils \
     librilutils_static
 
-LOCAL_CFLAGS :=
+LOCAL_CFLAGS += -DHAVE_PTHREADS
 
 LOCAL_MODULE:= libril_static
-
-LOCAL_LDLIBS += -lpthread
 
 include $(BUILD_STATIC_LIBRARY)
 endif # ANDROID_BIONIC_TRANSITION
