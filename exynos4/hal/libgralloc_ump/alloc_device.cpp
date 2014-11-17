@@ -58,7 +58,6 @@
 #include <sys/ioctl.h>
 #include <pixelflinger/format.h>
 
-#include "videodev2.h"
 #include "s5p_fimc.h"
 
 #ifdef SAMSUNG_EXYNOS4x12
