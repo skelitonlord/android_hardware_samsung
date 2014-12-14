@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 #include <linux/videodev2.h>
+#include "videodev2_samsung.h"
 //#include "videodev2_exynos_camera.h"
 //#include "videodev2_exynos_media.h"
 
