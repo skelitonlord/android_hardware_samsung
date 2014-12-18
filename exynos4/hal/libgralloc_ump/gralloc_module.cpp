@@ -73,18 +73,18 @@ private_handle_rect *find_rect(int secure_id)
 
 private_handle_rect *find_last_rect(int secure_id)
 {
-    private_handle_rect *psRect;
-    private_handle_rect *psFRect;
-
+    private_handle_rect *psRect = NULL;
+    private_handle_rect *psFRect = NULL;
+    
     if (rect_list == NULL) {
         rect_list = (private_handle_rect *)calloc(1, sizeof(private_handle_rect));
         return rect_list;
     }
 
     for (psRect = rect_list; psRect; psRect = psRect->next) {
+		psFRect = psRect;
         if (psRect->handle == secure_id)
             return psFRect;
-        psFRect = psRect;
     }
     return psFRect;
 }
