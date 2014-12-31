@@ -436,7 +436,7 @@ issueLocalRequest(int request, void *data, int len, RIL_SOCKET_ID socket_id) {
 
     /* Hack to include Samsung requests */
     if (request > 10000) {
-        index = request - 10000 + MAX_RIL_SOL;
+        int index = request - 10000 + MAX_RIL_SOL;
         RLOGD("SAMSUNG: request=%d, index=%d", request, index);
         pRI->pCI = &(s_commands[index]);
     } else {
