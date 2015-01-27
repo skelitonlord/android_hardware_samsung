@@ -29,23 +29,22 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils libUMP libGLESv1_CM libsecion
 
 # Include the UMP header files
-LOCAL_C_INCLUDES += \
-    bionic/libc/include \
-    $(LOCAL_PATH)/../include
+LOCAL_C_INCLUDES:= $(LOCAL_PATH)/../include
 
 LOCAL_SRC_FILES := \
 	gralloc_module.cpp \
 	alloc_device.cpp \
 	framebuffer_device.cpp
 
-LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := optional
-
-LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -DGRALLOC_32_BITS
+#LOCAL_MODULE := gralloc.default
+LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
+LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
 #LOCAL_CFLAGS+= -DMALI_VSYNC_EVENT_REPORT_ENABLE
 
 LOCAL_CFLAGS += -DSAMSUNG_EXYNOS
 LOCAL_CFLAGS += -DSAMSUNG_EXYNOS_CACHE_UMP
+LOCAL_CFLAGS += -DUSE_PARTIAL_FLUSH
 
 ifeq ($(TARGET_SOC),exynos4210)
 LOCAL_CFLAGS += -DSAMSUNG_EXYNOS4210
