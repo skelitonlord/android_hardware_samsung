@@ -120,14 +120,13 @@ public class SamsungExynos4RIL extends RIL implements CommandsInterface {
     static final int RIL_UNSOL_MIP_CONNECT_STATUS = 11032;
 
     private Object mCatProCmdBuffer;
-    /* private Message mPendingGetSimStatus; */
 
     public SamsungExynos4RIL(Context context, int networkMode, int cdmaSubscription) {
-        super(context, networkMode, cdmaSubscription, null);
+        super(context, networkMode, cdmaSubscription);
     }
 
-    public SamsungExynos4RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceId) {
-        super(context, networkMode, cdmaSubscription, instanceId);
+    public SamsungExynos4RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceID) {
+         super(context, networkMode, cdmaSubscription, instanceID);
     }
 
     static String
@@ -376,26 +375,6 @@ public class SamsungExynos4RIL extends RIL implements CommandsInterface {
 
         send(rr);
     }
-
-/*    @Override
-    public void
-    getIccCardStatus(Message result) {
-        if (mState != RadioState.RADIO_ON) {
-            mPendingGetSimStatus = result;
-        } else {
-            super.getIccCardStatus(result);
-        }
-    }
-
-    @Override
-    protected void
-    switchToRadioState(RadioState newState) {
-        super.switchToRadioState(newState);
-        if (newState == RadioState.RADIO_ON && mPendingGetSimStatus != null) {
-            super.getIccCardStatus(mPendingGetSimStatus);
-            mPendingGetSimStatus = null;
-        }
-    }*/
 
     public void
     dialEmergencyCall(String address, int clirMode, Message result) {
