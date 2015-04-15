@@ -170,6 +170,7 @@ extern "C" const char * rilSocketIdToString(RIL_SOCKET_ID socket_id);
 
 extern "C"
 char rild[MAX_SOCKET_NAME_LENGTH] = SOCKET_NAME_RIL;
+
 /*******************************************************************/
 
 RIL_RadioFunctions s_callbacks = {0, NULL, NULL, NULL, NULL, NULL};
@@ -227,9 +228,7 @@ static RequestInfo *s_pendingRequests_socket4          = NULL;
 static struct ril_event s_wake_timeout_event;
 static struct ril_event s_debug_event;
 
-
 static const struct timeval TIMEVAL_WAKE_TIMEOUT = {1,0};
-
 
 static pthread_mutex_t s_startupMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t s_startupCond = PTHREAD_COND_INITIALIZER;
@@ -434,7 +433,7 @@ issueLocalRequest(int request, void *data, int len, RIL_SOCKET_ID socket_id) {
     pRI->local = 1;
     pRI->token = 0xffffffff;        // token is not used in this context
 
-   /* Hack to include Samsung requests */
+    /* Hack to include Samsung requests */
     if (request > 10000) {
         int index = request - 10000 + MAX_RIL_SOL;
         RLOGD("SAMSUNG: request=%d, index=%d", request, index);
@@ -458,15 +457,15 @@ issueLocalRequest(int request, void *data, int len, RIL_SOCKET_ID socket_id) {
     CALL_ONREQUEST(request, data, len, pRI, pRI->socket_id);
 }
 
-
-
 static int
 processCommandBuffer(void *buffer, size_t buflen, RIL_SOCKET_ID socket_id) {
+
     Parcel p;
     status_t status;
     int32_t request;
     int32_t token;
     RequestInfo *pRI;
+    
     int ret;
     /* Hook for current context */
     /* pendingRequestsMutextHook refer to &s_pendingRequestsMutex */
@@ -508,6 +507,7 @@ processCommandBuffer(void *buffer, size_t buflen, RIL_SOCKET_ID socket_id) {
 
     if (request < 1 || request >= (int32_t)NUM_ELEMS(s_commands)) {
         Parcel pErr;
+
         RLOGE("unsupported request code %d token %d", request, token);
         // FIXME this should perhaps return a response
         pErr.writeInt32 (RESPONSE_SOLICITED);
@@ -518,12 +518,11 @@ processCommandBuffer(void *buffer, size_t buflen, RIL_SOCKET_ID socket_id) {
         return 0;
     }
 
-
     pRI = (RequestInfo *)calloc(1, sizeof(RequestInfo));
 
     pRI->token = token;
 
-        /* Hack to include Samsung requests */
+    /* Hack to include Samsung requests */
     if (request > 10000) {
         int index = request - 10000 + MAX_RIL_SOL;
         RLOGD("processCommandBuffer: samsung request=%d, index=%d",
@@ -760,6 +759,9 @@ dispatchDial (Parcel &p, RequestInfo *pRI) {
     int32_t sizeOfDial;
     int32_t t;
     int32_t uusPresent;
+#ifdef MODEM_TYPE_XMM7260
+    char *csv;
+#endif
     status_t status;
 
     memset (&dial, 0, sizeof(dial));
@@ -773,6 +775,25 @@ dispatchDial (Parcel &p, RequestInfo *pRI) {
         goto invalid;
     }
 
+#ifdef MODEM_TYPE_XMM7260
+    /* CallDetails.call_type */
+    status = p.readInt32(&t);
+    if (status != NO_ERROR) {
+        goto invalid;
+    }
+    /* CallDetails.call_domain */
+    p.readInt32(&t);
+    if (status != NO_ERROR) {
+        goto invalid;
+    }
+    /* CallDetails.getCsvFromExtra */
+    csv = strdupReadString(p);
+    if (csv == NULL) {
+        goto invalid;
+    }
+    free(csv);
+#endif
+
     if (s_callbacks.version < 3) { // Remove when partners upgrade to version 3
         uusPresent = 0;
         sizeOfDial = sizeof(dial) - sizeof(RIL_UUS_Info *);
@@ -784,7 +805,17 @@ dispatchDial (Parcel &p, RequestInfo *pRI) {
         }
 
         if (uusPresent == 0) {
+#ifdef MODEM_TYPE_6262
             dial.uusInfo = NULL;
+#elif MODEM_TYPE_6260
+            /* Samsung hack */
+            memset(&uusInfo, 0, sizeof(RIL_UUS_Info));
+            uusInfo.uusType = (RIL_UUS_Type) 0;
+            uusInfo.uusDcs = (RIL_UUS_DCS) 0;
+            uusInfo.uusData = NULL;
+            uusInfo.uusLength = 0;
+            dial.uusInfo = &uusInfo;
+#endif
         } else {
             int32_t len;
 
@@ -994,7 +1025,6 @@ invalid:
     invalidCommandBlock(pRI);
     return;
 }
-
 
 /**
  * Callee expects const RIL_CallForwardInfo *
@@ -1702,8 +1732,8 @@ static void dispatchSetInitialAttachApn(Parcel &p, RequestInfo *pRI)
     pf.password = strdupReadString(p);
 
     startRequest;
-    appendPrintBuf("%sapn=%s, protocol=%s, authtype=%d, username=%s, password=%s",
-            printBuf, pf.apn, pf.protocol, pf.authtype, pf.username, pf.password);
+    appendPrintBuf("%sapn=%s, protocol=%s, auth_type=%d, username=%s, password=%s",
+            printBuf, pf.apn, pf.protocol, pf.auth_type, pf.username, pf.password);
     closeRequest;
     printRequest(pRI->token, pRI->pCI->requestNumber);
 
@@ -2032,13 +2062,6 @@ sendResponseRaw (const void *data, size_t dataSize, RIL_SOCKET_ID socket_id) {
         return -1;
     }
 
-    if (dataSize > MAX_COMMAND_BYTES) {
-        RLOGE("RIL: packet larger than %u (%u)",
-                MAX_COMMAND_BYTES, (unsigned int )dataSize);
-
-        return -1;
-    }
-
     pthread_mutex_lock(writeMutexHook);
 
     header = htonl(dataSize);
@@ -2101,7 +2124,6 @@ responseInts(Parcel &p, void *response, size_t responselen) {
     return 0;
 }
 
-
 /** response is a char **, pointing to an array of char *'s
     The parcel will begin with the version */
 static int responseStringsWithVersion(int version, Parcel &p, void *response, size_t responselen) {
@@ -2138,29 +2160,11 @@ static int responseStrings(Parcel &p, void *response, size_t responselen, bool n
         char **p_cur = (char **) response;
 
         numStrings = responselen / sizeof(char *);
-#ifdef NEW_LIBRIL_HTC
-        if (network_search == true) {
-            // we only want four entries for each network
-            p.writeInt32 (numStrings - (numStrings / 5));
-        } else {
-            p.writeInt32 (numStrings);
-        }
-        int sCount = 0;
-#else
         p.writeInt32 (numStrings);
-#endif
 
         /* each string*/
         startResponse;
         for (int i = 0 ; i < numStrings ; i++) {
-#ifdef NEW_LIBRIL_HTC
-            sCount++;
-            // ignore the fifth string that is returned by newer HTC libhtc_ril.so.
-            if (network_search == true && sCount % 5 == 0) {
-                sCount = 0;
-                continue;
-            }
-#endif
             appendPrintBuf("%s%s,", printBuf, (char*)p_cur[i]);
             writeStringToParcel (p, p_cur[i]);
         }
@@ -2169,7 +2173,6 @@ static int responseStrings(Parcel &p, void *response, size_t responselen, bool n
     }
     return 0;
 }
-
 
 /**
  * NULL strings are accepted
@@ -2221,6 +2224,16 @@ static int responseCallList(Parcel &p, void *response, size_t responselen) {
         p.writeInt32(p_cur->isMT);
         p.writeInt32(p_cur->als);
         p.writeInt32(p_cur->isVoice);
+
+#ifdef MODEM_TYPE_XMM7260
+        p.writeInt32(p_cur->isVideo);
+
+        /* Pass CallDetails */
+        p.writeInt32(0);
+        p.writeInt32(0);
+        writeStringToParcel(p, "");
+#endif
+
         p.writeInt32(p_cur->isVoicePrivacy);
         writeStringToParcel(p, p_cur->number);
         p.writeInt32(p_cur->numberPresentation);
@@ -2249,6 +2262,11 @@ static int responseCallList(Parcel &p, void *response, size_t responselen) {
             p_cur->als,
             (p_cur->isVoice)?"voc":"nonvoc",
             (p_cur->isVoicePrivacy)?"evp":"noevp");
+#ifdef MODEM_TYPE_XMM7260
+        appendPrintBuf("%s,%s,",
+            printBuf,
+            (p_cur->isVideo) ? "vid" : "novid");
+#endif
         appendPrintBuf("%s%s,cli=%d,name='%s',%d]",
             printBuf,
             p_cur->number,
@@ -3488,7 +3506,6 @@ static void processCommandsCallback(int fd, short flags, void *param) {
     }
 }
 
-
 static void onNewCommandConnect(RIL_SOCKET_ID socket_id) {
     // Inform we are connected and the ril version
     int rilVer = s_callbacks.version;
@@ -3573,7 +3590,7 @@ static void listenCallback (int fd, short flags, void *param) {
         RLOGD("Error on getsockopt() errno: %d", errno);
     }
 
-    if (!is_phone_socket) {
+    if ( !is_phone_socket ) {
       RLOGE("RILD must accept socket from %s", p_info->processName);
 
       close(fdCommand);
@@ -3704,7 +3721,7 @@ static void debugCallback (int fd, short flags, void *param) {
             data = 0;
             issueLocalRequest(RIL_REQUEST_RADIO_POWER, &data, sizeof(int), socket_id);
             // Close the socket
-            if (socket_id == RIL_SOCKET_1 && s_ril_param_socket.fdCommand > 0) {
+             if (socket_id == RIL_SOCKET_1 && s_ril_param_socket.fdCommand > 0) {
                 close(s_ril_param_socket.fdCommand);
                 s_ril_param_socket.fdCommand = -1;
             }
@@ -4007,7 +4024,6 @@ RIL_register (const RIL_RadioFunctions *callbacks) {
                         };
 #endif
 
-
     s_registerCalled = 1;
 
     RLOGI("s_registerCalled flag set, %d", s_started);
@@ -4134,6 +4150,7 @@ checkAndDequeueRequestInfo(struct RequestInfo *pRI) {
 }
 
 
+
 extern "C" void
 RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responselen) {
     RequestInfo *pRI;
@@ -4212,7 +4229,6 @@ RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responsel
 done:
     free(pRI);
 }
-
 
 static void
 grabPartialWakeLock() {
@@ -4355,7 +4371,6 @@ processRadioState(RIL_RadioState newRadioState, RIL_SOCKET_ID socket_id) {
 
     return newRadioState;
 }
-
 
 #if defined(ANDROID_MULTI_SIM)
 extern "C"
@@ -4610,6 +4625,7 @@ requestToString(int request) {
         case RIL_REQUEST_ENTER_NETWORK_DEPERSONALIZATION: return "ENTER_NETWORK_DEPERSONALIZATION";
         case RIL_REQUEST_GET_CURRENT_CALLS: return "GET_CURRENT_CALLS";
         case RIL_REQUEST_DIAL: return "DIAL";
+        case RIL_REQUEST_DIAL_EMERGENCY: return "DIAL";
         case RIL_REQUEST_GET_IMSI: return "GET_IMSI";
         case RIL_REQUEST_HANGUP: return "HANGUP";
         case RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND: return "HANGUP_WAITING_OR_BACKGROUND";
